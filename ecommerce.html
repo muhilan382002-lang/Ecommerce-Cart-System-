@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width,initial-scale=1" />
+ <title>Simple E‑Commerce Cart Demo</title>
+ <style>
+ :root{--accent:#2563eb;--muted:#6b7280;--card:#ffffff;--bg:#f3f4f6}
+ *{box-sizing:border-box}
+ body{font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial;
+margin:0;background:var(--bg);color:#111}
+ .wrap{max-width:1100px;margin:36px auto;padding:20px}
+ header{display:flex;align-items:center;justify-content:space-between;marginbottom:18px}
+ header h1{font-size:20px;margin:0}
+ .cart-btn{background:var(--card);border:1px solid #e5e7eb;padding:8px 12px;borderradius:8px;cursor:pointer;display:flex;align-items:center;gap:8px}
+ .cart-count{background:var(--accent);color:white;border-radius:999px;padding:4px
+8px;font-weight:600}
+ .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+ .product{background:var(--card);padding:14px;border-radius:12px;border:1px solid
+#e6e7eb;display:flex;flex-direction:column;gap:12px}
+ .thumb{height:140px;border-radius:10px;background:lineargradient(135deg,#fce7f3,#e0f2fe);display:flex;align-items:center;justify-content:center;fontweight:700;color:var(--muted)}
+ .title{font-size:15px;margin:0}
+ .price{font-weight:700}
+ .meta{color:var(--muted);font-size:13px}
+ .actions{display:flex;gap:8px;margin-top:auto}
+ .btn{padding:8px 10px;border-radius:8px;border:none;cursor:pointer}
+ .btn-primary{background:var(--accent);color:#fff}
+ .btn-ghost{background:#fff;border:1px solid #e6e7eb}
+ /* Cart sidebar */
+ .cart-panel{position:fixed;right:16px;top:16px;width:360px;max-width:calc(100% -
+32px);height:calc(100% - 32px);background:linear-gradient(180deg,#fff,#fbfdff);borderradius:12px;border:1px solid #e6e7eb;box-shadow:0 12px 30px
+rgba(15,23,42,0.08);overflow:auto;transform:translateX(120%);transition:transform .28s
+ease;z-index:60}
+ .cart-panel.open{transform:translateX(0)}
+ .cart-head{display:flex;align-items:center;justify-content:spacebetween;padding:14px;border-bottom:1px solid #f1f5f9}
+ .cart-content{padding:14px}
+ .line{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px dashed
+#f3f4f6}
+ .line .thumb-mini{width:56px;height:56px;border-radius:8px;background:lineargradient(135deg,#fee2e2,#e8f5ff);display:flex;align-items:center;justify-content:center;fontweight:700}
+ .qty-controls{display:flex;align-items:center;gap:8px}
+ .summary{padding:12px;border-top:1px solid #f1f5f9;background:lineargradient(180deg,#fff,#fbfdff)}
+ footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
+ @media (max-width:700px){
+ .cart-panel{left:8px;right:8px;width:auto;height:60vh}
+ }
+ </style>
+</head>
+<body>
+ <div class="wrap">
+ <header>
+ <h1>ShopEasy — Demo Store</h1>
+ <div style="display:flex;gap:12px;align-items:center">
+ <input id="search" placeholder="Search products" style="padding:8px 10px;borderradius:8px;border:1px solid #e6e7eb" />
+ <button class="cart-btn" id="openCartBtn" aria-expanded="false">
+ 🛒 Cart <span id="cartCount" class="cart-count">0</span>
+ </button>
+ </div>
+ </header>
+ <main>
+ <section class="grid" id="productGrid">
+ <!-- products rendered here -->
+ </section>
+ <footer>
+ Built with plain HTML/CSS/JS • Demo cart that persists to localStorage
+ </footer>
+ </main>
+ </div>
+ <!-- Cart Panel -->
+ <aside class="cart-panel" id="cartPanel" aria-hidden="true">
+ <div class="cart-head">
+ <strong>Your Cart</strong>
+ <div>
+ <button id="clearCart" class="btn btn-ghost">Clear</button>
+ <button id="closeCart" class="btn">Close</button>
+ </div>
+ </div>
+ <div class="cart-content" id="cartContent">
+ <!-- items go here -->
+ </div>
+ <div class="summary" id="cartSummary">
+ <!-- summary -->
+ </div>
+ </aside>
+ <script>
+ // Sample product data
+ const PRODUCTS = [
+ {id:1,title:'Classic Hoodie',price:2499,desc:'Cozy cotton hoodie, unisex.'},
+ {id:2,title:'Runner Sneakers',price:3999,desc:'Lightweight running shoes.'},
+ {id:3,title:'Leather Wallet',price:1499,desc:'Slim, RFID-blocking wallet.'},
+ {id:4,title:'Wireless Earbuds',price:2999,desc:'Noise-isolating earbuds.'},
+ {id:5,title:'Canvas Backpack',price:3299,desc:'Durable 20L backpack.'},
+ {id:6,title:'Sunglasses',price:999,desc:'UV400 protection, stylish.'}
+ ];
+ // Utilities
+ const $ = id => document.getElementById(id);
+ const format = cents => '₹' + (cents/100).toFixed(2);
+ // Cart state with localStorage persistence
+ const KEY = 'demo_cart_v1';
+ let cart = JSON.parse(localStorage.getItem(KEY) || '{}'); // {productId: qty}
+ function saveCart(){ localStorage.setItem(KEY, JSON.stringify(cart)); renderCartCount();
+renderCartPanel(); }
+ // Render products
+ const productGrid = $('productGrid');
+ function renderProducts(filter=''){
+ productGrid.innerHTML = '';
+ const q = filter.trim().toLowerCase();
+ const list = PRODUCTS.filter(p => !q || p.title.toLowerCase().includes(q) ||
+p.desc.toLowerCase().includes(q));
+ for(const p of list){
+ const div = document.createElement('article'); div.className='product';
+ div.innerHTML = `
+ <div class="thumb">${p.title.split(' ')[0]}</div>
+ <div>
+ <h3 class="title">${p.title}</h3>
+ <div class="meta">${p.desc}</div>
+ <div style="display:flex;align-items:center;justify-content:space-between;margintop:8px">
+ <div class="price">${format(p.price)}</div>
+ <div class="actions">
+ <button class="btn btn-ghost" data-id="${p.id}"
+onclick="addToCart(${p.id})">Add</button>
+ <button class="btn btn-primary" data-id="${p.id}"
+onclick="addToCart(${p.id},1)">Buy</button>
+ </div>
+ </div>
+ </div>`;
+ productGrid.appendChild(div);
+ }
+ }
+ // Cart operations
+ function addToCart(id, qty=1){
+ cart[id] = (cart[id] || 0) + qty;
+ saveCart();
+ // subtle animation to show action
+ const btn = event?.currentTarget;
+ if(btn){
+btn.animate([{transform:'scale(1.0)'},{transform:'scale(0.96)'},{transform:'scale(1.0)'}],{dur
+ation:220}); }
+ }
+ function removeFromCart(id){ delete cart[id]; saveCart(); }
+ function setQty(id, qty){ if(qty<=0) removeFromCart(id); else { cart[id]=qty; saveCart();
+} }
+ function clearCart(){ cart = {}; saveCart(); }
+ function cartItemsDetailed(){
+ return Object.keys(cart).map(id=>{
+ const p = PRODUCTS.find(x=>x.id==id);
+ return {product:p, qty:cart[id]};
+ }).filter(x=>x.product);
+ }
+ // Render cart count
+ function renderCartCount(){
+ const count = Object.values(cart).reduce((s,n)=>s+n,0);
+ $('cartCount').textContent = count;
+ }
+ // Render cart panel
+ function renderCartPanel(){
+ const el = $('cartContent'); el.innerHTML = '';
+ const items = cartItemsDetailed();
+ if(items.length===0){ el.innerHTML = '<div style="padding:18px;color:var(--muted)">Your cart is empty — add something nice!</div>';
+$('cartSummary').innerHTML=''; return; }
+ let subtotal = 0;
+ for(const it of items){
+ subtotal += it.product.price * it.qty;
+ const node = document.createElement('div'); node.className='line';
+ node.innerHTML = `
+ <div style="display:flex;gap:12px;align-items:center;width:100%">
+ <div class="thumb-mini">${it.product.title.split(' ')[0]}</div>
+ <div style="flex:1">
+ <div style="font-weight:700">${it.product.title}</div>
+ <div class="meta">${format(it.product.price)} each</div>
+ </div>
+ <div style="text-align:right">
+ <div class="qty-controls">
+ <button class="btn btn-ghost" onclick="decreaseQty(${it.product.id})">-
+</button>
+ <div style="min-width:34px;text-align:center">${it.qty}</div>
+ <button class="btn btn-ghost"
+onclick="increaseQty(${it.product.id})">+</button>
+ </div>
+ <div style="margin-top:8px;font-weight:700">${format(it.product.price *
+it.qty)}</div>
+ <div style="margin-top:6px"><button class="btn btn-ghost"
+onclick="removeFromCart(${it.product.id})">Remove</button></div>
+ </div>
+ </div>`;
+ el.appendChild(node);
+ }
+ const tax = Math.round(subtotal * 0.12);
+ const shipping = subtotal>5000?0:199;
+ const total = subtotal + tax + shipping;
+ $('cartSummary').innerHTML = `
+ <div style="display:flex;justify-content:spacebetween"><div>Subtotal</div><div>${format(subtotal)}</div></div>
+ <div style="display:flex;justify-content:space-between;margin-top:6px"><div>Tax
+(12%)</div><div>${format(tax)}</div></div>
+ <div style="display:flex;justify-content:space-between;margintop:6px"><div>Shipping</div><div>${shipping?format(shipping):'Free'}</div></div>
+ <hr style="margin:12px 0;border:none;border-top:1px solid #eef2f7">
+ <div style="display:flex;justify-content:space-between;font-weight:800;font-
+size:16px"><div>Total</div><div>${format(total)}</div></div>
+ <div style="display:flex;gap:8px;margin-top:12px">
+ <button class="btn btn-primary" onclick="checkout()">Checkout</button>
+ <button class="btn btn-ghost" onclick="closeCart()">Continue shopping</button>
+ </div>
+ `;
+ }
+ // small helpers bound to window so inline onclick works
+ function increaseQty(id){ setQty(id, (cart[id]||0) + 1); }
+ function decreaseQty(id){ setQty(id, (cart[id]||0) - 1); }
+ window.addToCart = addToCart; window.removeFromCart = removeFromCart;
+window.increaseQty = increaseQty; window.decreaseQty = decreaseQty; window.setQty =
+setQty;
+ // Cart open/close
+ const cartPanel = $('cartPanel');
+ function openCart(){ cartPanel.classList.add('open'); cartPanel.setAttribute('ariahidden','false'); $('openCartBtn').setAttribute('aria-expanded','true'); renderCartPanel(); }
+ function closeCart(){ cartPanel.classList.remove('open'); cartPanel.setAttribute('ariahidden','true'); $('openCartBtn').setAttribute('aria-expanded','false'); }
+ window.openCart = openCart; window.closeCart = closeCart;
+ // Checkout (demo)
+ function checkout(){
+ const items = cartItemsDetailed();
+ if(items.length===0){ alert('Cart empty — add items first'); return; }
+ // very simple checkout simulation
+ const names = items.map(i=>i.product.title + ' x' + i.qty).join('\n');
+ alert('Thank you for your purchase!\n\nOrder:\n' + names + '\n\n(This is a demo — no
+payment integrated)');
+ clearCart(); closeCart();
+ }
+ // Search
+ $('search').addEventListener('input', e=> renderProducts(e.target.value));
+ // Buttons
+ $('openCartBtn').addEventListener('click', openCart);
+ $('closeCart').addEventListener('click', closeCart);
+ $('clearCart').addEventListener('click', ()=>{ if(confirm('Clear cart?')) clearCart(); });
+ // Initialize
+ renderProducts(); renderCartCount();
+ // Expose save/clear for console quick testing
+ window._demo = {saveCart,clearCart,cart};
+ </script>
+</body>
+ </html>
+
